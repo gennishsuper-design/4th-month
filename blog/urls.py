@@ -19,21 +19,30 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path
+from django.contrib.auth.views import LogoutView
 
-from posts.views import create_category, create_post, hello_world, post_detail, post_list
-from users.views import login, login_view, register
+from posts.views import (
+    CategoryCreateView,
+    HelloWorldView,
+    PostCreateView,
+    PostDeleteView,
+    PostDetailView,
+    PostListView,
+)
+from users.views import LoginView, RegisterView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("админ/", admin.site.urls),
-    path("", hello_world),
-    path("posts/", post_list, name="post_list"),
-    path("пост/", post_list),
-    path("posts/<int:id>/", post_detail, name="post_detail"),
-    path("posts/create/", create_post, name="post_create"),
-    path("posts/categories/create/", create_category, name="create_category"),
-    path("register/", register, name="register"),
-    path("login/", login_view, name="login"),
+    path("", HelloWorldView.as_view()),
+    path("posts/", PostListView.as_view(), name="post_list"),
+    path("пост/", PostListView.as_view()),
+    path("posts/<int:id>/", PostDetailView.as_view(), name="post_detail"),
+    path("posts/<int:id>/delete/", PostDeleteView.as_view(), name="post_delete"),
+    path("posts/create/", PostCreateView.as_view(), name="post_create"),
+    path("posts/categories/create/", CategoryCreateView.as_view(), name="create_category"),
+    path("register/", RegisterView.as_view(), name="register"),
+    path("login/", LoginView.as_view(), name="login"),
+    path("logout/", LogoutView.as_view(next_page="/"), name="logout"),
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

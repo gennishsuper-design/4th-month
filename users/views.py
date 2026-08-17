@@ -1,37 +1,34 @@
-from django.shortcuts import render
-from django.contrib.auth.models import User
+from django.contrib.auth import authenticate, login
 from django.http.request import HttpRequest
 from django.http.response import HttpResponse
-from users.forms import UserForm
-from django.contrib.auth import login 
-from django.shortcuts import redirect
-from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse_lazy
+from django.views.generic import CreateView, FormView
+
+from users.forms import UserForm, LoginForm
 
 
-def register(request: HttpRequest) -> HttpResponse:
-    form = UserForm()
-    if request.method.lower() == "post": # type: ignore
-        form = UserForm(request.POST)
-        if form.is_valid():
-            form.instance.save()
-            form.instance.password = form.instance.set_password(form.cleaned_data["password"])
-            login(request, form.instance)
-            return redirect("post_list")
-        
+class RegisterView(CreateView):
+    form_class = UserForm
+    template_name = "users/register.html"
+    success_url = reverse_lazy("post_list")
 
-    return render(request, "users/register.html", {"form": form})
+    def form_valid(self, form):
+        user = form.save()
+        login(self.request, user)
+        return super().form_valid(form)
 
 
-def login_view(request: HttpRequest) -> HttpResponse:
-    form = UserForm()
+class LoginView(FormView):
+    form_class = LoginForm
+    template_name = "users/login.html"
+    success_url = reverse_lazy("post_list")
 
-    if request.method.lower() == "post":
-        form = UserForm(request.POST)
-        if form.is_valid():
-            user = get_object_or_404(User, username=form.cleaned_data["username"])
-
-            if user.check_password(form.cleaned_data["password"]):
-                login(request, user)    #type: ignore
-                return redirect("post_list")
-
-    return render(request, "users/login.html", context={"form": form})
+    def form_valid(self, form):
+        username = form.cleaned_data["username"]
+        password = form.cleaned_data["password"]
+        user = authenticate(self.request, username=username, password=password)
+        if user is None:
+            form.add_error(None, "Неверные учетные данные")
+            return self.form_invalid(form)
+        login(self.request, user)
+        return super().form_valid(form)

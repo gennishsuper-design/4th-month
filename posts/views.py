@@ -1,41 +1,58 @@
 from django.http.request import HttpRequest
 from django.http.response import HttpResponse
-from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse_lazy
+from django.views import View
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.views.generic import ListView, DetailView, CreateView, DeleteView
 
 from posts.forms import CategoryForm, PostForm
 from posts.models import Category, Post
 
-# Create your views here.
+
+class HelloWorldView(View):
+    def get(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
+        return HttpResponse("<h1>Hello world!</h1>")
 
 
-def hello_world(request: HttpRequest):
-    return HttpResponse("<h1>Hello world!</h1>")
+class PostListView(ListView):
+    model = Post
+    template_name = "posts/posts.html"
+    context_object_name = "posts"
+
+    def get_queryset(self):
+        return Post.objects.order_by("-created_at").all()
 
 
-def post_list(request: HttpRequest):
-    posts = Post.objects.order_by("-created_at").all()
-
-    return render(request, "posts/posts.html", {"posts": posts})
-
-
-def post_detail(request: HttpRequest, id: int) -> HttpResponse:
-    post = get_object_or_404(Post, id=id)
-    return render(request, "posts/post_detail.html", {"post": post})
+class PostDetailView(DetailView):
+    model = Post
+    template_name = "posts/post_detail.html"
+    context_object_name = "post"
+    pk_url_kwarg = "id"
 
 
-def create_category(request: HttpRequest) -> HttpResponse:
-    form = CategoryForm(request.POST or None)
-    if request.method == "POST" and form.is_valid():
-        form.save()
-        return redirect("post_create")
-
-    return render(request, "posts/create_category.html", {"form": form})
+class PostCreateView(CreateView):
+    form_class = PostForm
+    template_name = "posts/create_post.html"
+    success_url = reverse_lazy("post_list")
 
 
-def create_post(request: HttpRequest) -> HttpResponse:
-    form = PostForm(request.POST or None, request.FILES or None)
-    if request.method == "POST" and form.is_valid():
-        form.save()
-        return redirect("post_list")
+class CategoryCreateView(CreateView):
+    form_class = CategoryForm
+    template_name = "posts/create_category.html"
+    success_url = reverse_lazy("post_create")
 
-    return render(request, "posts/create_post.html", context={"form": form})
+
+class PostDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+    model = Post
+    template_name = "posts/post_confirm_delete.html"
+    success_url = reverse_lazy("post_list")
+    context_object_name = "post"
+    pk_url_kwarg = "id"
+
+    def test_func(self):
+        user = self.request.user
+        post = self.get_object()
+        # allow staff or the original author if model has `author` field
+        if user.is_staff:
+            return True
+        return getattr(post, "author", None) == user
